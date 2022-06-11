@@ -1,0 +1,328 @@
+from PIL import Image as Im
+from PIL import ImageTk, ImageEnhance
+from tkinter import *
+from tkinter import messagebox
+from tkinter import filedialog
+
+
+class shade:
+    def __init__(self, r, g, b):
+        self.R = r
+        self.G = g
+        self.B = b
+        self.shade = Im.new("RGB", (50, 50), (self.R, self.G, self.B))
+        self.shade = ImageTk.PhotoImage(self.shade)
+        self.shade_place = Label(image=self.shade)
+        self.shade_place.image = self.shade
+
+
+class Btn:
+    def __init__(self, plot, text, width, height, bg, fg, font, command):
+        self.plot = plot
+        self.command = command
+        self.button = Button(self.plot, text=text, width=width, height=height, bg=bg, fg=fg, font=font, command=self.command)
+
+
+class Image:
+    image = 0
+    default_image = 0
+    changed_image = 0
+    place = 0
+
+    def __init__(self, plot):
+        self.plot = plot
+        self.path = ""
+        self.x = 0
+        self.y = 0
+        self.default_x = 0
+        self.default_y = 0
+
+
+class Slider:
+    def __init__(self, plot, orient, length, from_, to, resolution, action):
+        self.plot = plot
+        self.scale = Scale(self.plot, orient=orient, length=length, from_=from_, to=to, resolution=resolution)
+        self.action = action
+        self.scale.bind("<B1-Motion>", self.action)
+
+
+class Window:
+    def __init__(self):
+        self.plot = Tk()
+        self.plot.title("Оттенки")
+        self.plot.resizable(0, 0)
+        self.plot.wm_attributes("-topmost", 1)
+        self.plot.geometry("480x640")
+        self.plot["bg"] = "grey22"
+        self.plot.protocol("WM_DELETE_WINDOW", self.closing)
+
+        self.canvas = Canvas(self.plot, height=480, width=300, bg="grey22")
+
+        self.OpenButton = Btn(self.plot, "Открыть фото", 13, 1, "#6500E6", 'white', 'arial 14', self.input_photo)
+        self.OpenButton.button.place(anchor="center", x=240, y=30)
+
+        self.ZoomScale = Slider(self.plot, VERTICAL, 300, -6, 6, 1, self.get_val_zoom)
+
+        self.IMG = Image(self.plot)
+
+        self.CloseButton = Btn(self.plot, "Выйти", 13, 1, "#6500E6", "white", "arial 14", self.closing)
+
+        self.ShadesButton = Btn(self.plot, "🎨", 2, 1, "#6500E6", "white", 'arial 14', self.analyz)
+        self.CloseShadesButton = Btn(self.plot, "🎨", 2, 1, "#6500E6", "white", 'arial 14', self.close_shades)
+
+        self.ContrastButton = Btn(self.plot, "◐", 2, 1, "#6500E6", "white", 'arial 14', self.show_contrast)
+        self.CloseContrastButton = Btn(self.plot, "☒", 2, 1, "#6500E6", "white", 'arial 14', self.close_contrast)
+        self.ContrastSlider = Slider(self.plot, HORIZONTAL, 300, -50, 50, 1, self.get_val_contrast)
+
+        self.ColorButton = Btn(self.plot, "💧", 2, 1, "#6500E6", "white", 'arial 14', self.show_color)
+        self.CloseColorButton = Btn(self.plot, "☒", 2, 1, "#6500E6", "white", 'arial 14', self.close_color)
+        self.ColorSlider = Slider(self.plot, HORIZONTAL, 300, -50, 50, 1, self.get_val_color)
+
+        self.BrightnessButton = Btn(self.plot, "☼", 2, 1, "#6500E6", "white", 'arial 14', self.show_brightness)
+        self.CloseBrightnessButton = Btn(self.plot, "☒", 2, 1, "#6500E6", "white", 'arial 14', self.close_brightness)
+        self.BrightnessSlider = Slider(self.plot, HORIZONTAL, 300, -50, 50, 1, self.get_val_brightness)
+
+        self.SharpnessButton = Btn(self.plot, "🔻", 2, 1, "#6500E6", "white", 'arial 14', self.show_sharpness)
+        self.CloseSharpnessButton = Btn(self.plot, "☒", 2, 1, "#6500E6", "white", 'arial 14', self.close_sharpness)
+        self.SharpnessSlider = Slider(self.plot, HORIZONTAL, 300, -50, 50, 1, self.get_val_sharpness)
+
+        self.ShowDefaultButton = Btn(self.plot, '◧', 2, 1, "#6500E6", "white", 'arial 14', self.show_default)
+        self.CloseDefaultButton = Btn(self.plot, '◧', 2, 1, "#6500E6", "white", 'arial 14', self.close_default)
+
+        self.SaveButton = Btn(self.plot, "↓", 2, 1, "#6500E6", "white", 'arial 14', self.save_image)
+
+        self.plot.mainloop()
+
+    def show_default(self):
+        self.forget_places()
+        self.IMG.image = self.IMG.default_image
+        self.canvas.place_forget()
+        self.output_photo()
+        self.ShowDefaultButton.button.place_forget()
+        self.CloseDefaultButton.button.place(anchor='center', x=360, y=30)
+
+    def close_default(self):
+        self.IMG.image = self.IMG.changed_image
+        self.canvas.place_forget()
+        self.output_photo()
+        self.ShowDefaultButton.button.place(anchor='center', x=360, y=30)
+        self.CloseDefaultButton.button.place_forget()
+        self.main()
+
+    def show_sharpness(self):
+        self.forget_places()
+        self.CloseSharpnessButton.button.place(anchor="s", x=30, y=620)
+        self.SharpnessSlider.scale.place(anchor="w", x=70, y=600)
+
+    def close_sharpness(self):
+        self.CloseSharpnessButton.button.place_forget()
+        self.SharpnessSlider.scale.place_forget()
+        self.IMG.changed_image = self.IMG.image
+        self.main()
+
+    def get_val_sharpness(self, event):
+        sharpness_val = self.SharpnessSlider.scale.get()
+        enhance_sharpness = ImageEnhance.Sharpness(self.IMG.changed_image)
+        self.IMG.image = enhance_sharpness.enhance(1 + sharpness_val * 0.01)
+        self.canvas.place_forget()
+        self.output_photo()
+
+    def show_brightness(self):
+        self.forget_places()
+        self.CloseBrightnessButton.button.place(anchor="s", x=30, y=620)
+        self.BrightnessSlider.scale.place(anchor="w", x=70, y=600)
+
+    def close_brightness(self):
+        self.CloseBrightnessButton.button.place_forget()
+        self.BrightnessSlider.scale.place_forget()
+        self.IMG.changed_image = self.IMG.image
+        self.main()
+
+    def get_val_brightness(self, event):
+        brightness_val = self.BrightnessSlider.scale.get()
+        enhance_brightness = ImageEnhance.Brightness(self.IMG.changed_image)
+        self.IMG.image = enhance_brightness.enhance(1 + brightness_val * 0.01)
+        self.canvas.place_forget()
+        self.output_photo()
+
+    def show_color(self):
+        self.forget_places()
+        self.CloseColorButton.button.place(anchor="s", x=30, y=620)
+        self.ColorSlider.scale.place(anchor="w", x=70, y=600)
+
+    def close_color(self):
+        self.CloseColorButton.button.place_forget()
+        self.ColorSlider.scale.place_forget()
+        self.IMG.changed_image = self.IMG.image
+        self.main()
+
+    def get_val_color(self, event):
+        color_val = self.ColorSlider.scale.get()
+        enhance_color = ImageEnhance.Color(self.IMG.changed_image)
+        self.IMG.image = enhance_color.enhance(1 + color_val * 0.01)
+        self.canvas.place_forget()
+        self.output_photo()
+
+    def forget_places(self):
+        self.ShadesButton.button.place_forget()
+        self.ContrastButton.button.place_forget()
+        self.ColorButton.button.place_forget()
+        self.BrightnessButton.button.place_forget()
+        self.SharpnessButton.button.place_forget()
+        self.ShowDefaultButton.button.place_forget()
+        self.SaveButton.button.place_forget()
+
+    def show_contrast(self):
+        self.forget_places()
+        self.CloseContrastButton.button.place(anchor="s", x=30, y=620)
+        self.ContrastSlider.scale.place(anchor="w", x=70, y=600)
+
+    def close_contrast(self):
+        self.CloseContrastButton.button.place_forget()
+        self.ContrastSlider.scale.place_forget()
+        self.IMG.changed_image = self.IMG.image
+        self.main()
+
+    def get_val_contrast(self, event):
+        contrast_val = self.ContrastSlider.scale.get()
+        enhance_contrast = ImageEnhance.Contrast(self.IMG.changed_image)
+        self.IMG.image = enhance_contrast.enhance(1 + contrast_val * 0.01)
+        self.canvas.place_forget()
+        self.output_photo()
+
+    def save_image(self):
+        save_file = filedialog.asksaveasfilename(filetypes=[("PNG", "*.png")])
+        self.IMG.changed_image.save(save_file + ".png")
+
+    def input_photo(self):
+        while True:
+            path = filedialog.askopenfilename()
+            if (path[-3] + path[-2] + path[-1]) != "png" and (path[-3] + path[-2] + path[-1]) != "jpg":
+                if messagebox.askokcancel("Ошибка", "Произошла ошибка.\n Хотите повторить?"):
+                    continue
+                else:
+                    exit(Window.input_photo)
+            else:
+                self.IMG.path = path
+                break
+        self.IMG.image = Im.open(self.IMG.path)
+        self.IMG.default_image = Im.open(self.IMG.path)
+        self.IMG.changed_image = Im.open(self.IMG.path)
+        self.OpenButton.button.place_forget()
+        self.IMG.x = self.IMG.image.size[0]
+        self.IMG.y = self.IMG.image.size[1]
+        self.IMG.default_x = self.IMG.image.size[0]
+        self.IMG.default_y = self.IMG.image.size[1]
+        self.CloseButton.button.place(anchor="center", x=240, y=30)
+        self.output_photo()
+        self.ZoomScale.scale.pack(side=RIGHT)
+        self.main()
+
+    def output_photo(self):
+        self.photo = self.IMG.image.resize((self.IMG.x, self.IMG.y), Im.ANTIALIAS)
+        self.photo = ImageTk.PhotoImage(self.photo)
+        self.canvas.place(anchor="center", x=240, y=320)
+        self.img = self.canvas.create_image(150, 240, anchor='center', image=self.photo)
+
+    def get_val_zoom(self, event):
+        zoom = self.ZoomScale.scale.get()
+        if zoom != 0:
+            if zoom > 0:
+                self.IMG.x = self.IMG.default_x * (zoom+1)
+                self.IMG.y = self.IMG.default_y * (zoom+1)
+            elif zoom < 0:
+                self.IMG.x = self.IMG.default_x // (-zoom+1)
+                self.IMG.y = self.IMG.default_y // (-zoom+1)
+        else:
+            self.IMG.x = self.IMG.default_x
+            self.IMG.y = self.IMG.default_y
+        self.canvas.place_forget()
+        self.output_photo()
+
+    def closing(self):
+        if messagebox.askokcancel("Выход", "Вы действительно хотите выйти?"):
+            self.plot.destroy()
+
+    def analyz(self):
+        R = []
+        G = []
+        B = []
+        pixels = self.IMG.default_image.load()
+        for x in range(self.IMG.default_x):
+            for y in range(self.IMG.default_y):
+                r = pixels[x, y][0]
+                g = pixels[x, y][1]
+                b = pixels[x, y][2]
+                if max(r, g, b) == r:
+                    R.append([r, g, b])
+                elif max(r, g, b) == g:
+                    G.append([r, g, b])
+                elif max(r, g, b) == b:
+                    B.append([r, g, b])
+        RGB = self.shades(R, G, B)
+        self.show_shades(RGB)
+
+    def show_shades(self, RGB):
+        self.shade1 = shade(RGB[0][0], RGB[0][1], RGB[0][2])
+        self.shade1.shade_place.place(anchor="w", x=15, y=160)
+        self.shade2 = shade(RGB[1][0], RGB[1][1], RGB[1][2])
+        self.shade2.shade_place.place(anchor="w", x=15, y=320)
+        self.shade3 = shade(RGB[2][0], RGB[2][1], RGB[2][2])
+        self.shade3.shade_place.place(anchor="w", x=15, y=480)
+        self.ShadesButton.button.place_forget()
+        self.CloseShadesButton.button.place(anchor="s", x=80, y=620)
+
+    def close_shades(self):
+        self.shade1.shade_place.place_forget()
+        self.shade2.shade_place.place_forget()
+        self.shade3.shade_place.place_forget()
+        self.ShadesButton.button.place(anchor="s", x=80, y=620)
+        self.CloseShadesButton.button.place_forget()
+
+    def shades(self, R, G, B):
+        shades_r = self.frequency(R)
+        shades_g = self.frequency(G)
+        shades_b = self.frequency(B)
+        return [shades_r, shades_g, shades_b]
+
+    def frequency(self, arr):
+        R = [0] * 256
+        G = [0] * 256
+        B = [0] * 256
+        for i in range(len(arr)):
+            a, b, c = arr[i][0], arr[i][1], arr[i][2]
+            R[a] += 1
+            G[b] += 1
+            B[c] += 1
+        r, g, b = 0, 0, 0
+        r = self.middle(R)
+        g = self.middle(G)
+        b = self.middle(B)
+        return [r, g, b]
+
+    def middle(self, arr):
+        a = 0
+        for i in range(len(arr)):
+            a += arr[i]
+        a = a / len(arr)
+        j = 0
+        k = 0
+        for i in range(len(arr)):
+            if arr[i] > a:
+                j += i
+                k += 1
+        if k == 0:
+            return 0
+        return j // k
+
+    def main(self):
+        self.ShadesButton.button.place(anchor="s", x=80, y=620)
+        self.ContrastButton.button.place(anchor="s", x=160, y=620)
+        self.ColorButton.button.place(anchor="s", x=240, y=620)
+        self.BrightnessButton.button.place(anchor="s", x=320, y=620)
+        self.SharpnessButton.button.place(anchor="s", x=400, y=620)
+        self.ShowDefaultButton.button.place(anchor='center', x=360, y=30)
+        self.SaveButton.button.place(anchor='center', x=120, y=30)
+
+
+window = Window()
